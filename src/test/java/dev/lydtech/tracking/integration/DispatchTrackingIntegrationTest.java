@@ -1,6 +1,7 @@
 package dev.lydtech.tracking.integration;
 
 import dev.lydtech.TrackingConfiguration;
+import dev.lydtech.message.DispatchCompleted;
 import dev.lydtech.message.DispatchPreparing;
 import dev.lydtech.tracking.message.TrackingStatusUpdated;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,9 +65,18 @@ class DispatchTrackingIntegrationTest {
     }
 
     @Test
-    void testTrackingStatusFlow() {
+    void testTrackingStatusPreparingFlow() {
         DispatchPreparing dispatchPreparing = DispatchPreparing.builder().orderId(UUID.randomUUID()).build();
         kafkaTemplate.send(DISPATCH_TRACKING_TOPIC, dispatchPreparing);
+
+        await().atMost(2L, TimeUnit.SECONDS).pollDelay(100L, TimeUnit.MILLISECONDS)
+                .untilAtomic(kafkaTestListener.trackingStatusCounter, equalTo(1));
+    }
+
+    @Test
+    void testTrackingStatusCompletedFlow() {
+        DispatchCompleted dispatchCompleted = DispatchCompleted.builder().orderId(UUID.randomUUID()).completionDate(LocalDate.now()).build();
+        kafkaTemplate.send(DISPATCH_TRACKING_TOPIC, dispatchCompleted);
 
         await().atMost(2L, TimeUnit.SECONDS).pollDelay(100L, TimeUnit.MILLISECONDS)
                 .untilAtomic(kafkaTestListener.trackingStatusCounter, equalTo(1));
